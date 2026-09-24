@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2acc47ae4580157478a25f3651e1627a, type: 3}
+  m_Name: CourierSettings
+  m_EditorClassIdentifier: Assembly-CSharp::CocoCourier.CourierSettings
+  jumpDuration: 0.65
+  arcHeight: 0.65
+  minimumCarSpeed: 2.4
+  maximumCarSpeed: 4.5
+  minimumSpawnInterval: 1.2
+  maximumSpawnInterval: 2
+  perfectDeliverySeconds: 14
+  onePointDeliverySeconds: 65
+  finalLaneSpeedMultiplier: 1.45
+  shiftSpeedStep: 0.08
+  vanSpeedMultiplier: 0.8
+  scooterSpeedMultiplier: 1.2
+  closeCallMargin: 0.25
+  closeCallCoins: 5
+  contractCoins: 30
+  streakCoins: 75
+  shiftCoins: 40
+  expressDeadline: 24
+  heavyJumpMultiplier: 1.2
+  kitchenSeconds: 35
+  kitchenDoubleRewardScore: 4
+  lastMeterTip: 15
+  lastMeterGreenWidth: 0.22
+  lastMeterSweepSeconds: 1.4
+  lostParcelCoins: 40
+  lostParcelJumpMultiplier: 1.15
+  rushDeadline: 45
+  rushSpeedMultiplier: 1.12
+  rushSpawnMultiplier: 0.85
+  rushSilverSeconds: 30
+  rushGoldSeconds: 20
