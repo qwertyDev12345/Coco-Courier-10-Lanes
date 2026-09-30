@@ -1,0 +1,8 @@
+# App icon
+
+Generated with the built-in image_gen tool. Reference: Resources/PixelArt/courier.png (character identity and style only).
+Output: Assets/Coco/ArtSource/CocoCourierIcon.png. Original generated resolution preserved. No Player Settings changed.
+
+## Exact prompt
+
+Use case: stylized-concept. Create one finished square mobile game app icon for Coco Courier: 10 Lanes. Input image is a character identity and pixel-art style reference ONLY, not an atlas to reproduce. Feature the same adorable cream-white chicken courier with red comb, teal cap and teal jacket, orange beak, dark navy eyes, yellow delivery backpack. Hero close-up in an energetic three-quarter running pose, face prominently occupying central upper half, one wing holding a small cardboard parcel in lower foreground, yellow backpack clearly visible. Friendly determined expression. Background: simple dark teal asphalt road with two or three cream dashed lane marks receding diagonally and a tiny red car silhouette in the distant upper corner. Strong silhouette and contrast, expressive face, sparse background. Cohesive polished chunky pixel art, crisp square pixel clusters, limited cream/teal/gold/coral palette, deep navy outlines, no photorealism, no smooth 3D rendering. Compose for readability at 64x64: large face and parcel, no fine detail. Full-bleed opaque square image, 1024x1024 if possible, no transparent margins, no baked rounded corners, keep important features inside central 80% safe area for app icon masking. No words, letters, numbers, logo, watermark or interface. Output a single icon, not a sheet or mockup.
