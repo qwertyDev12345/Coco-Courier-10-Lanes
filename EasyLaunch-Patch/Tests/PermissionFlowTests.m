@@ -377,6 +377,7 @@
         [NSValue valueWithCGSize:CGSizeMake(390, 844)],
         [NSValue valueWithCGSize:CGSizeMake(568, 320)],
         [NSValue valueWithCGSize:CGSizeMake(320, 568)]];
+    CGFloat landscapeTitleHeight = 0;
     for (NSValue *value in sizes) {
         window.frame = (CGRect){CGPointZero, value.CGSizeValue};
         prompt.view.frame = window.bounds;
@@ -393,14 +394,27 @@
             XCTAssertGreaterThanOrEqual(label.bounds.size.height + 1, needed.height);
             XCTAssertEqual(label.numberOfLines, 0);
         }
+        UILabel *title = [prompt valueForKey:@"titleLabel"];
+        // Measure the full string independently of UILabel's intrinsic size.
+        CGRect fullTitle = [title.text boundingRectWithSize:CGSizeMake(title.bounds.size.width, CGFLOAT_MAX)
+            options:NSStringDrawingUsesLineFragmentOrigin | NSStringDrawingUsesFontLeading
+            attributes:@{NSFontAttributeName:title.font} context:nil];
+        XCTAssertGreaterThanOrEqual(title.bounds.size.height + 1, fullTitle.size.height);
+        if (value.CGSizeValue.width > value.CGSizeValue.height) {
+            landscapeTitleHeight = title.bounds.size.height;
+        } else {
+            XCTAssertGreaterThan(title.bounds.size.height, title.font.lineHeight * 2);
+            if (landscapeTitleHeight > 0) XCTAssertGreaterThan(title.bounds.size.height, landscapeTitleHeight);
+        }
         UIButton *cancel = [prompt valueForKey:@"cancelButton"];
         CGRect buttonRect = [cancel convertRect:cancel.bounds toView:content.superview];
         XCTAssertGreaterThanOrEqual(scroll.contentSize.height + 1, CGRectGetMaxY(buttonRect));
         XCTAssertLessThanOrEqual(scroll.contentSize.width, scroll.bounds.size.width + 1);
-        UIView *overlay = prompt.view.subviews[1];
-        XCTAssertTrue(CGRectEqualToRect(overlay.frame, prompt.view.bounds));
-        XCTAssertTrue(CGRectEqualToRect(overlay.layer.bounds, overlay.bounds));
-        XCTAssertTrue([overlay.layer isKindOfClass:[CAGradientLayer class]]);
+        UIImageView *background = [prompt valueForKey:@"bgImageView"];
+        XCTAssertTrue(CGRectEqualToRect(background.frame, prompt.view.bounds));
+        // Only the background and scroll viewport remain: no independent dimmer.
+        XCTAssertEqual(prompt.view.subviews.count, 2u);
+        XCTAssertEqualObjects(prompt.view.subviews.lastObject, scroll);
     }
     window.hidden = YES;
     window.rootViewController = nil;

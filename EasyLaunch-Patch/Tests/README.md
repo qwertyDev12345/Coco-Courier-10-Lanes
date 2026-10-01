@@ -207,3 +207,17 @@ horizontal overflow and dimming bounds. Run with the existing macOS simulator
 suite. Windows portable checks do not compile UIKit or validate rotation
 animation. Device acceptance: open the prompt in portrait, rotate to landscape
 and back repeatedly, scroll if needed, then verify Allow / Not Now.
+
+Follow-up r2: label minimum heights are now explicitly measured using the final
+width on each layout, including after rotation. Tests independently measure the
+complete title string and require more than two lines in portrait. The device
+log must contain `Notification prompt layout r2 (2026-10-01)` to establish that
+this revision is installed. This is not an on-device verification result.
+
+Follow-up r3: adopted PLDimmedNotificationBackground from the supplied working
+ChickenRoad controller. Dimming is rendered into the background UIImage; the
+separate gradient view is removed. Full text wrapping, measured heights and
+safe-area scrolling remain. Layout tests now check the single background fills
+the viewport and there is no independent dimming view. Device log marker:
+`Notification prompt layout r3 baked background (2026-10-01)`.
+Native compilation and rotation acceptance still require macOS/iPhone.

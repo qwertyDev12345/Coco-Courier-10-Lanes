@@ -1,12 +1,34 @@
 #import "NotificationPromptViewController.h"
 #import <QuartzCore/QuartzCore.h>
+#import <math.h>
 
-// A backing layer follows its view throughout UIKit's rotation animation.
-@interface PLNotificationGradientView : UIView
-@end
-@implementation PLNotificationGradientView
-+ (Class)layerClass { return [CAGradientLayer class]; }
-@end
+// Bake the fade into the background pixels once. Rotation scales one UIImage;
+// there is no separate dimming view or layer that can move independently.
+static UIImage *PLDimmedNotificationBackground(UIImage *source)
+{
+    if (!source || source.size.width <= 0 || source.size.height <= 0) return source;
+    UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat defaultFormat];
+    format.scale = source.scale;
+    format.opaque = YES;
+    format.preferredRange = UIGraphicsImageRendererFormatRangeStandard;
+    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc]
+        initWithSize:source.size format:format];
+    return [renderer imageWithActions:^(UIGraphicsImageRendererContext *context) {
+        CGRect bounds = (CGRect){CGPointZero, source.size};
+        [[UIColor blackColor] setFill];
+        [context fillRect:bounds];
+        [source drawInRect:bounds];
+        NSArray *colors = @[(id)[UIColor colorWithWhite:0 alpha:0.45].CGColor,
+                            (id)[UIColor colorWithWhite:0 alpha:0.65].CGColor];
+        CGFloat stops[] = {0, 1};
+        CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+        CGGradientRef gradient = CGGradientCreateWithColors(space, (__bridge CFArrayRef)colors, stops);
+        CGContextDrawLinearGradient(context.CGContext, gradient, CGPointZero,
+                                    CGPointMake(0, source.size.height), 0);
+        CGGradientRelease(gradient);
+        CGColorSpaceRelease(space);
+    }];
+}
 
 @interface NotificationPromptViewController ()
 @property (nonatomic, strong) UIImageView *bgImageView;
@@ -19,6 +41,8 @@
 @property (nonatomic, copy) NotificationPromptHandler cancelHandler;
 @property (nonatomic, strong) UIScrollView *scrollView;
 @property (nonatomic, assign) BOOL handledAction;
+@property (nonatomic, strong) NSLayoutConstraint *titleMinimumHeight;
+@property (nonatomic, strong) NSLayoutConstraint *messageMinimumHeight;
 @end
 
 @implementation NotificationPromptViewController
@@ -39,21 +63,12 @@
     self.view.backgroundColor = [UIColor blackColor];
 
     // Background image — использует тот же задник что и экран загрузки
-    _bgImageView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"LaunchBackground"]];
+    UIImage *background = image ?: [UIImage imageNamed:@"LaunchBackground"];
+    _bgImageView = [[UIImageView alloc] initWithImage:PLDimmedNotificationBackground(background)];
     _bgImageView.contentMode = UIViewContentModeScaleAspectFill;
     _bgImageView.translatesAutoresizingMaskIntoConstraints = NO;
     _bgImageView.clipsToBounds = YES;
     [self.view addSubview:_bgImageView];
-
-    PLNotificationGradientView *gradView = [PLNotificationGradientView new];
-    gradView.translatesAutoresizingMaskIntoConstraints = NO;
-    gradView.userInteractionEnabled = NO;
-    CAGradientLayer *gradient = (CAGradientLayer *)gradView.layer;
-    gradient.colors = @[(id)[UIColor colorWithWhite:0.0 alpha:0.45].CGColor,
-                        (id)[UIColor colorWithWhite:0.0 alpha:0.65].CGColor];
-    gradient.startPoint = CGPointMake(0.5, 0.0);
-    gradient.endPoint = CGPointMake(0.5, 1.0);
-    [self.view addSubview:gradView];
 
     // Scroll only when the complete text and buttons exceed the safe viewport.
     _scrollView = [UIScrollView new];
@@ -120,17 +135,19 @@
     [_cancelButton addTarget:self action:@selector(onCancel:) forControlEvents:UIControlEventTouchUpInside];
     [self.contentView addSubview:_cancelButton];
 
+    // Explicit measured minimum heights prevent a previous landscape measurement
+    // from clipping wrapped text when the viewport becomes narrow.
+    self.titleMinimumHeight = [self.titleLabel.heightAnchor constraintGreaterThanOrEqualToConstant:0];
+    self.messageMinimumHeight = [self.messageLabel.heightAnchor constraintGreaterThanOrEqualToConstant:0];
+    self.titleMinimumHeight.active = YES;
+    self.messageMinimumHeight.active = YES;
+
     // Layout
     [NSLayoutConstraint activateConstraints:@[
         [self.bgImageView.topAnchor constraintEqualToAnchor:self.view.topAnchor],
         [self.bgImageView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
         [self.bgImageView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
         [self.bgImageView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
-
-        [gradView.topAnchor constraintEqualToAnchor:self.view.topAnchor],
-        [gradView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
-        [gradView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
-        [gradView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
 
         [self.scrollView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
         [self.scrollView.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor],
@@ -174,6 +191,35 @@
     ]];
 
     return self;
+}
+
+- (void)viewDidAppear:(BOOL)animated
+{
+    [super viewDidAppear:animated];
+    NSLog(@"[EasyLaunch] Notification prompt layout r3 baked background (2026-10-01)");
+}
+
+- (BOOL)updateTextHeight:(UILabel *)label constraint:(NSLayoutConstraint *)constraint
+{
+    CGFloat width = CGRectGetWidth(label.bounds);
+    if (width <= 0) return NO;
+    label.preferredMaxLayoutWidth = width;
+    CGFloat height = ceil([label sizeThatFits:CGSizeMake(width, CGFLOAT_MAX)].height);
+    if (fabs(constraint.constant - height) < 0.5) return NO;
+    constraint.constant = height;
+    return YES;
+}
+
+- (void)viewDidLayoutSubviews
+{
+    [super viewDidLayoutSubviews];
+    BOOL titleChanged = [self updateTextHeight:self.titleLabel constraint:self.titleMinimumHeight];
+    BOOL messageChanged = [self updateTextHeight:self.messageLabel constraint:self.messageMinimumHeight];
+    if (titleChanged || messageChanged) {
+        // A second pass incorporates the full text into the scroll content size.
+        // Constants change only when measured height changes, avoiding a layout loop.
+        [self.view layoutIfNeeded];
+    }
 }
 
 - (void)onAllow:(id)sender
