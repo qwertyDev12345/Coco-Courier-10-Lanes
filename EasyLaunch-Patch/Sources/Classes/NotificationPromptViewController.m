@@ -1,4 +1,12 @@
 #import "NotificationPromptViewController.h"
+#import <QuartzCore/QuartzCore.h>
+
+// A backing layer follows its view throughout UIKit's rotation animation.
+@interface PLNotificationGradientView : UIView
+@end
+@implementation PLNotificationGradientView
++ (Class)layerClass { return [CAGradientLayer class]; }
+@end
 
 @interface NotificationPromptViewController ()
 @property (nonatomic, strong) UIImageView *bgImageView;
@@ -9,8 +17,7 @@
 @property (nonatomic, strong) UIButton *cancelButton;
 @property (nonatomic, copy) NotificationPromptHandler allowHandler;
 @property (nonatomic, copy) NotificationPromptHandler cancelHandler;
-/// Kept so we can resize it on rotation (it lives inside gradView, not self.view.layer directly).
-@property (nonatomic, strong) CAGradientLayer *gradientLayer;
+@property (nonatomic, strong) UIScrollView *scrollView;
 @property (nonatomic, assign) BOOL handledAction;
 @end
 
@@ -38,24 +45,31 @@
     _bgImageView.clipsToBounds = YES;
     [self.view addSubview:_bgImageView];
 
-    // Gradient overlay to darken image
-    _gradientLayer = [CAGradientLayer layer];
-    _gradientLayer.colors = @[(id)[UIColor colorWithWhite:0.0 alpha:0.45].CGColor,
-                               (id)[UIColor colorWithWhite:0.0 alpha:0.65].CGColor];
-    _gradientLayer.startPoint = CGPointMake(0.5, 0.0);
-    _gradientLayer.endPoint = CGPointMake(0.5, 1.0);
-
-    UIView *gradView = [UIView new];
+    PLNotificationGradientView *gradView = [PLNotificationGradientView new];
     gradView.translatesAutoresizingMaskIntoConstraints = NO;
+    gradView.userInteractionEnabled = NO;
+    CAGradientLayer *gradient = (CAGradientLayer *)gradView.layer;
+    gradient.colors = @[(id)[UIColor colorWithWhite:0.0 alpha:0.45].CGColor,
+                        (id)[UIColor colorWithWhite:0.0 alpha:0.65].CGColor];
+    gradient.startPoint = CGPointMake(0.5, 0.0);
+    gradient.endPoint = CGPointMake(0.5, 1.0);
     [self.view addSubview:gradView];
-    // frame will be set to final bounds in viewDidLayoutSubviews
-    [gradView.layer insertSublayer:_gradientLayer atIndex:0];
+
+    // Scroll only when the complete text and buttons exceed the safe viewport.
+    _scrollView = [UIScrollView new];
+    _scrollView.translatesAutoresizingMaskIntoConstraints = NO;
+    _scrollView.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
+    _scrollView.alwaysBounceVertical = NO;
+    [self.view addSubview:_scrollView];
+    UIView *page = [UIView new];
+    page.translatesAutoresizingMaskIntoConstraints = NO;
+    [_scrollView addSubview:page];
 
     // Container for labels/buttons
     _contentView = [UIView new];
     _contentView.translatesAutoresizingMaskIntoConstraints = NO;
     _contentView.backgroundColor = [UIColor clearColor];
-    [self.view addSubview:_contentView];
+    [page addSubview:_contentView];
 
     _titleLabel = [UILabel new];
     _titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
@@ -63,7 +77,9 @@
     _titleLabel.textColor = [UIColor whiteColor];
     _titleLabel.font = [UIFont systemFontOfSize:28 weight:UIFontWeightBold];
     _titleLabel.textAlignment = NSTextAlignmentCenter;
-    _titleLabel.numberOfLines = 2;
+    _titleLabel.numberOfLines = 0;
+    _titleLabel.lineBreakMode = NSLineBreakByWordWrapping;
+    [_titleLabel setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisVertical];
     [self.contentView addSubview:_titleLabel];
 
     _messageLabel = [UILabel new];
@@ -73,6 +89,8 @@
     _messageLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightRegular];
     _messageLabel.textAlignment = NSTextAlignmentCenter;
     _messageLabel.numberOfLines = 0;
+    _messageLabel.lineBreakMode = NSLineBreakByWordWrapping;
+    [_messageLabel setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisVertical];
     [self.contentView addSubview:_messageLabel];
 
     // Кнопка «Allow» — яркая, акцентная
@@ -114,20 +132,24 @@
         [gradView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
         [gradView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
 
-        [self.contentView.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
-        // Desired vertical center (safe-area) — lower priority so inequality clamps can win.
-        ({  NSLayoutConstraint *c = [self.contentView.centerYAnchor
-                constraintEqualToAnchor:self.view.safeAreaLayoutGuide.centerYAnchor];
-            c.priority = UILayoutPriorityDefaultHigh; c; }),
-        // Hard clamp: never leave the safe area.
-        [self.contentView.topAnchor
-            constraintGreaterThanOrEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:16],
-        [self.contentView.bottomAnchor
-            constraintLessThanOrEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-16],
-        // Width: desired 82 % of view width, capped at 480 pt (comfortable on wide landscape).
-        ({  NSLayoutConstraint *c = [self.contentView.widthAnchor
-                constraintEqualToAnchor:self.view.widthAnchor multiplier:0.82];
-            c.priority = UILayoutPriorityDefaultHigh; c; }),
+        [self.scrollView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
+        [self.scrollView.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor],
+        [self.scrollView.leadingAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.leadingAnchor],
+        [self.scrollView.trailingAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.trailingAnchor],
+        [page.topAnchor constraintEqualToAnchor:self.scrollView.contentLayoutGuide.topAnchor],
+        [page.bottomAnchor constraintEqualToAnchor:self.scrollView.contentLayoutGuide.bottomAnchor],
+        [page.leadingAnchor constraintEqualToAnchor:self.scrollView.contentLayoutGuide.leadingAnchor],
+        [page.trailingAnchor constraintEqualToAnchor:self.scrollView.contentLayoutGuide.trailingAnchor],
+        [page.widthAnchor constraintEqualToAnchor:self.scrollView.frameLayoutGuide.widthAnchor],
+        [page.heightAnchor constraintGreaterThanOrEqualToAnchor:self.scrollView.frameLayoutGuide.heightAnchor],
+        ({ NSLayoutConstraint *c = [page.heightAnchor constraintEqualToAnchor:self.scrollView.frameLayoutGuide.heightAnchor];
+           c.priority = UILayoutPriorityDefaultLow; c; }),
+        [self.contentView.centerXAnchor constraintEqualToAnchor:page.centerXAnchor],
+        [self.contentView.centerYAnchor constraintEqualToAnchor:page.centerYAnchor],
+        [self.contentView.topAnchor constraintGreaterThanOrEqualToAnchor:page.topAnchor constant:16],
+        [self.contentView.bottomAnchor constraintLessThanOrEqualToAnchor:page.bottomAnchor constant:-16],
+        ({ NSLayoutConstraint *c = [self.contentView.widthAnchor constraintEqualToAnchor:page.widthAnchor multiplier:0.82];
+           c.priority = UILayoutPriorityDefaultHigh; c; }),
         [self.contentView.widthAnchor constraintLessThanOrEqualToConstant:480],
 
         [self.titleLabel.topAnchor constraintEqualToAnchor:self.contentView.topAnchor],
@@ -152,13 +174,6 @@
     ]];
 
     return self;
-}
-
-- (void)viewDidLayoutSubviews
-{
-    [super viewDidLayoutSubviews];
-    // Keep gradient filling the whole screen on every rotation.
-    _gradientLayer.frame = self.view.bounds;
 }
 
 - (void)onAllow:(id)sender

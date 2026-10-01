@@ -1,4 +1,5 @@
 #import <XCTest/XCTest.h>
+#import <QuartzCore/QuartzCore.h>
 #import <UserNotifications/UserNotifications.h>
 #import "PreloadViewController.h"
 #import "NotificationPromptViewController.h"
@@ -354,5 +355,54 @@
     XCTAssertFalse(web.isViewLoaded);
     XCTAssertFalse([[web valueForKey:@"displayingLoadError"] boolValue]);
     XCTAssertEqual([[web valueForKey:@"diagnosticLoadCount"] unsignedIntegerValue], 0u);
+}
+@end
+
+// Layout checks execute the real prompt without requesting OS permissions.
+@interface NotificationPromptLayoutTests : XCTestCase
+@end
+@implementation NotificationPromptLayoutTests
+- (void)testLongTextAndDimmingSurviveViewportChanges {
+    NotificationPromptViewController *prompt = [[NotificationPromptViewController alloc]
+        initWithTitle:@"ALLOW NOTIFICATION ABOUT BONUSES AND PROMOS"
+        message:[@"Delivery updates and daily rewards. " stringByPaddingToLength:800
+            withString:@"Delivery updates and daily rewards. " startingAtIndex:0]
+        backgroundImage:nil allowHandler:^{} cancelHandler:^{}];
+    UIWindow *window = [[UIWindow alloc] initWithFrame:CGRectMake(0, 0, 320, 568)];
+    window.rootViewController = prompt;
+    window.hidden = NO;
+    NSArray<NSValue *> *sizes = @[
+        [NSValue valueWithCGSize:CGSizeMake(320, 568)],
+        [NSValue valueWithCGSize:CGSizeMake(844, 390)],
+        [NSValue valueWithCGSize:CGSizeMake(390, 844)],
+        [NSValue valueWithCGSize:CGSizeMake(568, 320)],
+        [NSValue valueWithCGSize:CGSizeMake(320, 568)]];
+    for (NSValue *value in sizes) {
+        window.frame = (CGRect){CGPointZero, value.CGSizeValue};
+        prompt.view.frame = window.bounds;
+        [window setNeedsLayout];
+        [window layoutIfNeeded];
+        [prompt.view setNeedsLayout];
+        [prompt.view layoutIfNeeded];
+        UIScrollView *scroll = [prompt valueForKey:@"scrollView"];
+        UIView *content = [prompt valueForKey:@"contentView"];
+        XCTAssertFalse(content.hasAmbiguousLayout);
+        for (NSString *key in @[@"titleLabel", @"messageLabel"]) {
+            UILabel *label = [prompt valueForKey:key];
+            CGSize needed = [label sizeThatFits:CGSizeMake(label.bounds.size.width, CGFLOAT_MAX)];
+            XCTAssertGreaterThanOrEqual(label.bounds.size.height + 1, needed.height);
+            XCTAssertEqual(label.numberOfLines, 0);
+        }
+        UIButton *cancel = [prompt valueForKey:@"cancelButton"];
+        CGRect buttonRect = [cancel convertRect:cancel.bounds toView:content.superview];
+        XCTAssertGreaterThanOrEqual(scroll.contentSize.height + 1, CGRectGetMaxY(buttonRect));
+        XCTAssertLessThanOrEqual(scroll.contentSize.width, scroll.bounds.size.width + 1);
+        UIView *overlay = prompt.view.subviews[1];
+        XCTAssertTrue(CGRectEqualToRect(overlay.frame, prompt.view.bounds));
+        XCTAssertTrue(CGRectEqualToRect(overlay.layer.bounds, overlay.bounds));
+        XCTAssertTrue([overlay.layer isKindOfClass:[CAGradientLayer class]]);
+    }
+    window.hidden = YES;
+    window.rootViewController = nil;
 }
 @end

@@ -36,12 +36,14 @@ public static class CiBuild
 
         Debug.Log($"CI: building {scenes.Length} scene(s) for iOS into {outputPath}");
 
+        PlayerSettings.SetIl2CppCodeGeneration(UnityEditor.Build.NamedBuildTarget.iOS,
+            UnityEditor.Build.Il2CppCodeGeneration.OptimizeSize);
         BuildReport report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
         {
             scenes = scenes,
             locationPathName = outputPath,
             target = BuildTarget.iOS,
-            options = BuildOptions.None
+            options = BuildOptions.CompressWithLz4HC
         });
 
         if (report.summary.result != BuildResult.Succeeded)

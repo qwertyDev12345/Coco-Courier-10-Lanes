@@ -192,3 +192,18 @@ python3 -B -m unittest discover -s EasyLaunch-Patch/Tests -p 'test_*.py' -v
 - Subsequently, the supplied `easylaunch-build.json` identified commit `b52c75d4f0e73a775dcbed25a586242b1df5cc4c` and native fingerprint `3f4ea68a1ed54a903dbffa8b2d13f1fbc527568a9601d54dfb1ce2798c8706d3`. All 14 listed native files matched the local r1 sources. This confirms export identity, not an on-device pass. The r2 presentation changes require a new export and fingerprint.
 
 Before retesting, publish the prepared changes to the intended build branch, run Actions with `apply_patch=true`, and retain the build identity artifact. Real APNs and the three-day permission flow still require a device acceptance run; use the matching `.ips` if the new binary terminates.
+
+## Notification prompt layout (October 1, 2026)
+
+The title now wraps without a line limit. A safe-area scroll viewport retains
+full label heights and both buttons on short screens; content stays centered
+when it fits. The full-screen dimming view uses a CAGradientLayer backing layer,
+so UIKit resizes it with the view during rotation instead of separately updating
+a sublayer frame. Notification permission handling is unchanged.
+
+NotificationPromptLayoutTests covers long text at 320x568, 844x390, 390x844 and
+568x320, including return to portrait, text height, button reachability, no
+horizontal overflow and dimming bounds. Run with the existing macOS simulator
+suite. Windows portable checks do not compile UIKit or validate rotation
+animation. Device acceptance: open the prompt in portrait, rotate to landscape
+and back repeatedly, scroll if needed, then verify Allow / Not Now.

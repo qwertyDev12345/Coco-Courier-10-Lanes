@@ -15,9 +15,7 @@ namespace CocoCourier.Editor
                 {
                     string path="Assets/Coco/Resources/PixelArt/"+name+".png";
                     var importer=(TextureImporter)AssetImporter.GetAtPath(path);
-                    importer.isReadable=true;importer.mipmapEnabled=false;importer.filterMode=FilterMode.Point;
-                    importer.textureCompression=TextureImporterCompression.Uncompressed;importer.alphaIsTransparency=true;
-                    importer.npotScale=TextureImporterNPOTScale.None;importer.SaveAndReimport();
+                    PixelArtImporter.Configure(importer);importer.SaveAndReimport();
                     var texture=Resources.Load<Texture2D>("PixelArt/"+name);
                     if(!texture||texture.filterMode!=FilterMode.Point)throw new Exception("Missing pixel atlas: "+name);
                 }

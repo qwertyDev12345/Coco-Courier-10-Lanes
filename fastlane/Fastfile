@@ -105,6 +105,20 @@ platform :ios do
       }
     )
 
+    # Conservative local size budget before upload; Apple reports final TestFlight sizes.
+    archive_path = lane_context[SharedValues::XCODEBUILD_ARCHIVE]
+    app_paths = archive_path ? Dir.glob(File.join(archive_path, "Products", "Applications", "*.app")) : []
+    UI.user_error!("Cannot verify the 90 MB budget: archived .app not found") if app_paths.empty?
+    app_bytes = app_paths.sum do |app_path|
+      Dir.glob(File.join(app_path, "**", "*"), File::FNM_DOTMATCH)
+        .select { |path| File.file?(path) && !File.symlink?(path) }
+        .sum { |path| File.size(path) }
+    end
+    UI.message("Archived app payload: #{(app_bytes / 1_000_000.0).round(2)} MB (limit: below 90 MB)")
+    if app_bytes >= 90_000_000
+      UI.user_error!("App exceeds the 90 MB size budget. Upload stopped; inspect the archive before retrying.")
+    end
+
     upload_to_testflight(
       apple_id: ENV["APPLE_ID_DIGITS"],
       skip_waiting_for_build_processing: true
