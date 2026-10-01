@@ -36,6 +36,11 @@ public static class CiBuild
 
         Debug.Log($"CI: building {scenes.Length} scene(s) for iOS into {outputPath}");
 
+        // TestFlight requires device binaries, regardless of the SDK last used
+        // for local simulator testing in the Unity editor.
+        PlayerSettings.iOS.sdkVersion = iOSSdkVersion.DeviceSDK;
+        Debug.Log($"CI: iOS SDK = {PlayerSettings.iOS.sdkVersion}");
+
         PlayerSettings.SetIl2CppCodeGeneration(UnityEditor.Build.NamedBuildTarget.iOS,
             UnityEditor.Build.Il2CppCodeGeneration.OptimizeSize);
         BuildReport report = BuildPipeline.BuildPlayer(new BuildPlayerOptions

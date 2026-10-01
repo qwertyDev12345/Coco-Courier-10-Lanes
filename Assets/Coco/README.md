@@ -129,3 +129,12 @@ TextureSizeAudit.Run compiled successfully and verified all 41 runtime sprite sl
 CiBuild.BuildIOS uses CompressWithLz4HC and IL2CPP OptimizeSize. The iOS PlayerSettings value is persisted too. Fastlane now measures the archived .app payload (excluding symlink duplicates) before uploading and stops at >=90,000,000 bytes or if the archive cannot be located. This is a conservative local gate, not a substitute for Apple's final TestFlight download/install measurements. Actual distribution size requires a fresh signed Mac/Xcode build and Apple processing; Windows can validate the Unity export only.
 
 Local iOS export verification completed successfully on 2026-10-01 via CiBuild.BuildIOS. Build report confirms 9.4 MiB of total user assets, including 8.0 MiB of textures (built-in/URP textures included). Coco atlas entries match 512/256/128 imports. The reported full export size includes generated C++ and static libraries and is not an installed app/IPA size. Log: Logs/SizeIOSBuild.log. Signed Xcode archive and the Fastlane size gate still require the Mac CI run.
+
+### TestFlight device SDK (2026-10-01)
+
+CiBuild.BuildIOS explicitly selects iOSSdkVersion.DeviceSDK before exporting.
+Fastlane archives with sdk iphoneos and generic/platform=iOS. A simulator export
+cannot be repurposed by changing only the archive destination: regenerate the
+Unity export with the updated build method. Native routing tests continue using
+their separate simulator project. The reported exit 70 listed only simulator
+destinations for Unity-iPhone, before archive compilation began.
