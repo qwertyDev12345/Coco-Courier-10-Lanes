@@ -314,7 +314,15 @@ extern NSData *PLTestAPNsToken;
     app.simulatedActive = YES;
     [NSNotificationCenter.defaultCenter postNotificationName:UISceneDidActivateNotification object:nil];
     WebViewController *web = [self waitForRoutedWebView:app];
+    XCTAssertNil([app valueForKey:@"deferredOpenURL"]);
+    WKWebView *nativeWeb = [web valueForKey:@"webView"];
+    XCTAssertNotNil(nativeWeb);
     [self waitForWebView:web path:@"/after-settings"];
+    XCTAssertEqualObjects(nativeWeb.URL.path, @"/after-settings");
+    WKNavigation *navigation = [web valueForKey:@"activeNavigation"];
+    [NSNotificationCenter.defaultCenter postNotificationName:UISceneDidActivateNotification object:nil];
+    [self drainMainQueue];
+    XCTAssertEqual(navigation, [web valueForKey:@"activeNavigation"], @"Activation must not replay the retained route");
 }
 - (void)testRejectedPresentationRetriesInOwnedWindowNotForeignKeyWindow {
     RoutingApp *app = [RoutingApp new];
@@ -430,13 +438,34 @@ extern NSData *PLTestAPNsToken;
     return vc;
 }
 - (void)waitForWebView:(WebViewController *)vc path:(NSString *)path {
-    NSPredicate *loaded = [NSPredicate predicateWithBlock:^BOOL(id object, NSDictionary *bindings) {
+    XCTAssertNotNil(vc);
+    if (!vc) return;
+    NSPredicate *finished = [NSPredicate predicateWithBlock:^BOOL(id object, NSDictionary *bindings) {
         WKWebView *web = [vc valueForKey:@"webView"];
-        return !web.loading && [web.URL.path isEqualToString:path] &&
+        BOOL revealed = !web.loading && [web.URL.path isEqualToString:path] &&
             ![[vc valueForKey:@"pushCoverPending"] boolValue];
+        // Fail immediately on a real load/render error, rather than hiding its
+        // cause behind an opaque predicate timeout.
+        return revealed || [[vc valueForKey:@"displayingLoadError"] boolValue];
     }];
-    XCTNSPredicateExpectation *done = [[XCTNSPredicateExpectation alloc] initWithPredicate:loaded object:vc];
-    [self waitForExpectations:@[done] timeout:30];
+    XCTNSPredicateExpectation *done = [[XCTNSPredicateExpectation alloc] initWithPredicate:finished object:vc];
+    done.expectationDescription = [NSString stringWithFormat:@"Page %@ loaded and push cover removed", path];
+    // The production UI watchdog is 75s. Allow it to produce its real error on
+    // a slow simulator, plus scheduling margin; never retry or suppress failure.
+    XCTWaiterResult result = [XCTWaiter waitForExpectations:@[done] timeout:90];
+    WKWebView *web = [vc valueForKey:@"webView"];
+    BOOL succeeded = result == XCTWaiterResultCompleted && !web.loading &&
+        [web.URL.path isEqualToString:path] &&
+        ![[vc valueForKey:@"pushCoverPending"] boolValue] &&
+        ![[vc valueForKey:@"displayingLoadError"] boolValue];
+    if (!succeeded) {
+        NSString *report = [vc pl_diagnosticReportForError:nil source:@"XCTest page/reveal wait"];
+        XCTFail(@"Expected %@; waiter=%ld loading=%d cover=%@ background=%@ awaiting=%@ error=%@ attached=%d bounds=%@\n%@",
+            path, (long)result, web.loading, [vc valueForKey:@"pushCoverPending"],
+            [vc valueForKey:@"backgroundCovered"], [vc valueForKey:@"awaitingPushNavigation"],
+            [vc valueForKey:@"displayingLoadError"], web.window != nil,
+            NSStringFromCGRect(web.bounds), report);
+    }
 }
 - (void)testRemoteNotificationWithUnityHandlerCompiledOut {
     CustomAppController *app = [CustomAppController new];

@@ -230,3 +230,16 @@ resize. The baked background remains. Runtime marker: `Notification prompt
 layout r4 explicit frames (2026-10-01)` with title length and frame. Existing
 viewport regression tests still require execution on macOS; Windows checks do
 not establish that the reported device clipping is resolved.
+
+## October 1: Settings-return WebKit wait failure
+
+The supplied run passed 67/68 tests. The failing Settings-return test reached
+its WebView load/reveal wait; the retained-controller routing wait did not fail.
+The excerpt cannot distinguish a slow WebKit process from a load/reveal defect.
+The page helper now stops immediately on a displayed error, includes the
+redacted navigation diagnostic report and cover state on failure, and allows
+90 seconds so the production 75-second watchdog can report its own failure.
+Success still requires the requested path, finished loading and cover removal.
+Settings return additionally checks repeated activation does not replay the
+navigation. No production timeout or routing logic was changed. Run the native
+suite again on macOS; portable checks cannot establish that this failure is fixed.
