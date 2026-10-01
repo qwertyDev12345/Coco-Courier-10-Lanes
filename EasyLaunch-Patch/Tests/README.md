@@ -221,3 +221,12 @@ safe-area scrolling remain. Layout tests now check the single background fills
 the viewport and there is no independent dimming view. Device log marker:
 `Notification prompt layout r3 baked background (2026-10-01)`.
 Native compilation and rotation acceptance still require macOS/iPhone.
+
+Follow-up r4: replaced the prompt's Auto Layout hierarchy and second-pass label
+constraints with explicit frames calculated in viewDidLayoutSubviews. The full
+strings are measured with NSString boundingRect at the final viewport width;
+labels, buttons and scroll range are placed from those measurements on every
+resize. The baked background remains. Runtime marker: `Notification prompt
+layout r4 explicit frames (2026-10-01)` with title length and frame. Existing
+viewport regression tests still require execution on macOS; Windows checks do
+not establish that the reported device clipping is resolved.

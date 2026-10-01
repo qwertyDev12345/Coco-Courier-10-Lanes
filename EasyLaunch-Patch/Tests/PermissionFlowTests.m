@@ -362,16 +362,23 @@
 @interface NotificationPromptLayoutTests : XCTestCase
 @end
 @implementation NotificationPromptLayoutTests
+- (void)testProductionTextAfterLandscapeLaunch {
+    [self checkPromptLayoutWithMessage:@"Stay tuned with best offers from our casino"];
+}
 - (void)testLongTextAndDimmingSurviveViewportChanges {
+    [self checkPromptLayoutWithMessage:[@"Delivery updates and daily rewards. " stringByPaddingToLength:800
+        withString:@"Delivery updates and daily rewards. " startingAtIndex:0]];
+}
+- (void)checkPromptLayoutWithMessage:(NSString *)message {
     NotificationPromptViewController *prompt = [[NotificationPromptViewController alloc]
         initWithTitle:@"ALLOW NOTIFICATION ABOUT BONUSES AND PROMOS"
-        message:[@"Delivery updates and daily rewards. " stringByPaddingToLength:800
-            withString:@"Delivery updates and daily rewards. " startingAtIndex:0]
+        message:message
         backgroundImage:nil allowHandler:^{} cancelHandler:^{}];
     UIWindow *window = [[UIWindow alloc] initWithFrame:CGRectMake(0, 0, 320, 568)];
     window.rootViewController = prompt;
     window.hidden = NO;
     NSArray<NSValue *> *sizes = @[
+        [NSValue valueWithCGSize:CGSizeMake(844, 390)],
         [NSValue valueWithCGSize:CGSizeMake(320, 568)],
         [NSValue valueWithCGSize:CGSizeMake(844, 390)],
         [NSValue valueWithCGSize:CGSizeMake(390, 844)],
@@ -388,6 +395,9 @@
         UIScrollView *scroll = [prompt valueForKey:@"scrollView"];
         UIView *content = [prompt valueForKey:@"contentView"];
         XCTAssertFalse(content.hasAmbiguousLayout);
+        UILabel *messageLabel = [prompt valueForKey:@"messageLabel"];
+        UILabel *titleLabel = [prompt valueForKey:@"titleLabel"];
+        XCTAssertGreaterThanOrEqual(CGRectGetMinY(messageLabel.frame), CGRectGetMaxY(titleLabel.frame) + 12);
         for (NSString *key in @[@"titleLabel", @"messageLabel"]) {
             UILabel *label = [prompt valueForKey:key];
             CGSize needed = [label sizeThatFits:CGSizeMake(label.bounds.size.width, CGFLOAT_MAX)];

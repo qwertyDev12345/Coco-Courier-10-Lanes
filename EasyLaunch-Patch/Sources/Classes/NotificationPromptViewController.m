@@ -41,8 +41,6 @@ static UIImage *PLDimmedNotificationBackground(UIImage *source)
 @property (nonatomic, copy) NotificationPromptHandler cancelHandler;
 @property (nonatomic, strong) UIScrollView *scrollView;
 @property (nonatomic, assign) BOOL handledAction;
-@property (nonatomic, strong) NSLayoutConstraint *titleMinimumHeight;
-@property (nonatomic, strong) NSLayoutConstraint *messageMinimumHeight;
 @end
 
 @implementation NotificationPromptViewController
@@ -66,28 +64,24 @@ static UIImage *PLDimmedNotificationBackground(UIImage *source)
     UIImage *background = image ?: [UIImage imageNamed:@"LaunchBackground"];
     _bgImageView = [[UIImageView alloc] initWithImage:PLDimmedNotificationBackground(background)];
     _bgImageView.contentMode = UIViewContentModeScaleAspectFill;
-    _bgImageView.translatesAutoresizingMaskIntoConstraints = NO;
+    _bgImageView.translatesAutoresizingMaskIntoConstraints = YES;
     _bgImageView.clipsToBounds = YES;
     [self.view addSubview:_bgImageView];
 
     // Scroll only when the complete text and buttons exceed the safe viewport.
     _scrollView = [UIScrollView new];
-    _scrollView.translatesAutoresizingMaskIntoConstraints = NO;
+    _scrollView.translatesAutoresizingMaskIntoConstraints = YES;
     _scrollView.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
     _scrollView.alwaysBounceVertical = NO;
     [self.view addSubview:_scrollView];
-    UIView *page = [UIView new];
-    page.translatesAutoresizingMaskIntoConstraints = NO;
-    [_scrollView addSubview:page];
-
     // Container for labels/buttons
     _contentView = [UIView new];
-    _contentView.translatesAutoresizingMaskIntoConstraints = NO;
+    _contentView.translatesAutoresizingMaskIntoConstraints = YES;
     _contentView.backgroundColor = [UIColor clearColor];
-    [page addSubview:_contentView];
+    [_scrollView addSubview:_contentView];
 
     _titleLabel = [UILabel new];
-    _titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    _titleLabel.translatesAutoresizingMaskIntoConstraints = YES;
     _titleLabel.text = title ?: @"";
     _titleLabel.textColor = [UIColor whiteColor];
     _titleLabel.font = [UIFont systemFontOfSize:28 weight:UIFontWeightBold];
@@ -98,7 +92,7 @@ static UIImage *PLDimmedNotificationBackground(UIImage *source)
     [self.contentView addSubview:_titleLabel];
 
     _messageLabel = [UILabel new];
-    _messageLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    _messageLabel.translatesAutoresizingMaskIntoConstraints = YES;
     _messageLabel.text = message ?: @"";
     _messageLabel.textColor = [UIColor colorWithWhite:1.0 alpha:0.9];
     _messageLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightRegular];
@@ -110,7 +104,7 @@ static UIImage *PLDimmedNotificationBackground(UIImage *source)
 
     // Кнопка «Allow» — яркая, акцентная
     _allowButton = [UIButton buttonWithType:UIButtonTypeCustom];
-    _allowButton.translatesAutoresizingMaskIntoConstraints = NO;
+    _allowButton.translatesAutoresizingMaskIntoConstraints = YES;
     [_allowButton setTitle:@"Allow" forState:UIControlStateNormal];
     _allowButton.backgroundColor = [UIColor colorWithRed:0.18 green:0.55 blue:1.00 alpha:1.0];
     [_allowButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
@@ -126,7 +120,7 @@ static UIImage *PLDimmedNotificationBackground(UIImage *source)
 
     // Кнопка «Not Now» — тусклая, без фона, просто текст
     _cancelButton = [UIButton buttonWithType:UIButtonTypeCustom];
-    _cancelButton.translatesAutoresizingMaskIntoConstraints = NO;
+    _cancelButton.translatesAutoresizingMaskIntoConstraints = YES;
     [_cancelButton setTitle:@"Not Now" forState:UIControlStateNormal];
     _cancelButton.backgroundColor = [UIColor clearColor];
     [_cancelButton setTitleColor:[UIColor colorWithWhite:1.0 alpha:0.40] forState:UIControlStateNormal];
@@ -135,91 +129,56 @@ static UIImage *PLDimmedNotificationBackground(UIImage *source)
     [_cancelButton addTarget:self action:@selector(onCancel:) forControlEvents:UIControlEventTouchUpInside];
     [self.contentView addSubview:_cancelButton];
 
-    // Explicit measured minimum heights prevent a previous landscape measurement
-    // from clipping wrapped text when the viewport becomes narrow.
-    self.titleMinimumHeight = [self.titleLabel.heightAnchor constraintGreaterThanOrEqualToConstant:0];
-    self.messageMinimumHeight = [self.messageLabel.heightAnchor constraintGreaterThanOrEqualToConstant:0];
-    self.titleMinimumHeight.active = YES;
-    self.messageMinimumHeight.active = YES;
-
-    // Layout
-    [NSLayoutConstraint activateConstraints:@[
-        [self.bgImageView.topAnchor constraintEqualToAnchor:self.view.topAnchor],
-        [self.bgImageView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
-        [self.bgImageView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
-        [self.bgImageView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
-
-        [self.scrollView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
-        [self.scrollView.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor],
-        [self.scrollView.leadingAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.leadingAnchor],
-        [self.scrollView.trailingAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.trailingAnchor],
-        [page.topAnchor constraintEqualToAnchor:self.scrollView.contentLayoutGuide.topAnchor],
-        [page.bottomAnchor constraintEqualToAnchor:self.scrollView.contentLayoutGuide.bottomAnchor],
-        [page.leadingAnchor constraintEqualToAnchor:self.scrollView.contentLayoutGuide.leadingAnchor],
-        [page.trailingAnchor constraintEqualToAnchor:self.scrollView.contentLayoutGuide.trailingAnchor],
-        [page.widthAnchor constraintEqualToAnchor:self.scrollView.frameLayoutGuide.widthAnchor],
-        [page.heightAnchor constraintGreaterThanOrEqualToAnchor:self.scrollView.frameLayoutGuide.heightAnchor],
-        ({ NSLayoutConstraint *c = [page.heightAnchor constraintEqualToAnchor:self.scrollView.frameLayoutGuide.heightAnchor];
-           c.priority = UILayoutPriorityDefaultLow; c; }),
-        [self.contentView.centerXAnchor constraintEqualToAnchor:page.centerXAnchor],
-        [self.contentView.centerYAnchor constraintEqualToAnchor:page.centerYAnchor],
-        [self.contentView.topAnchor constraintGreaterThanOrEqualToAnchor:page.topAnchor constant:16],
-        [self.contentView.bottomAnchor constraintLessThanOrEqualToAnchor:page.bottomAnchor constant:-16],
-        ({ NSLayoutConstraint *c = [self.contentView.widthAnchor constraintEqualToAnchor:page.widthAnchor multiplier:0.82];
-           c.priority = UILayoutPriorityDefaultHigh; c; }),
-        [self.contentView.widthAnchor constraintLessThanOrEqualToConstant:480],
-
-        [self.titleLabel.topAnchor constraintEqualToAnchor:self.contentView.topAnchor],
-        [self.titleLabel.leadingAnchor constraintEqualToAnchor:self.contentView.leadingAnchor],
-        [self.titleLabel.trailingAnchor constraintEqualToAnchor:self.contentView.trailingAnchor],
-
-        [self.messageLabel.topAnchor constraintEqualToAnchor:self.titleLabel.bottomAnchor constant:12],
-        [self.messageLabel.leadingAnchor constraintEqualToAnchor:self.contentView.leadingAnchor],
-        [self.messageLabel.trailingAnchor constraintEqualToAnchor:self.contentView.trailingAnchor],
-
-        [self.allowButton.topAnchor constraintEqualToAnchor:self.messageLabel.bottomAnchor constant:22],
-        [self.allowButton.leadingAnchor constraintEqualToAnchor:self.contentView.leadingAnchor],
-        [self.allowButton.trailingAnchor constraintEqualToAnchor:self.contentView.trailingAnchor],
-        [self.allowButton.heightAnchor constraintEqualToConstant:48],
-
-        [self.cancelButton.topAnchor constraintEqualToAnchor:self.allowButton.bottomAnchor constant:12],
-        [self.cancelButton.leadingAnchor constraintEqualToAnchor:self.contentView.leadingAnchor],
-        [self.cancelButton.trailingAnchor constraintEqualToAnchor:self.contentView.trailingAnchor],
-        [self.cancelButton.heightAnchor constraintEqualToConstant:44],
-
-        [self.cancelButton.bottomAnchor constraintEqualToAnchor:self.contentView.bottomAnchor],
-    ]];
-
     return self;
 }
 
-- (void)viewDidAppear:(BOOL)animated
+// Measure the complete string independently of UILabel's previous frame.
+// Include a small rounding margin so the final line cannot lose its descenders.
+- (CGFloat)heightForLabel:(UILabel *)label width:(CGFloat)width
 {
-    [super viewDidAppear:animated];
-    NSLog(@"[EasyLaunch] Notification prompt layout r3 baked background (2026-10-01)");
-}
-
-- (BOOL)updateTextHeight:(UILabel *)label constraint:(NSLayoutConstraint *)constraint
-{
-    CGFloat width = CGRectGetWidth(label.bounds);
-    if (width <= 0) return NO;
-    label.preferredMaxLayoutWidth = width;
-    CGFloat height = ceil([label sizeThatFits:CGSizeMake(width, CGFLOAT_MAX)].height);
-    if (fabs(constraint.constant - height) < 0.5) return NO;
-    constraint.constant = height;
-    return YES;
+    NSMutableParagraphStyle *paragraph = [NSMutableParagraphStyle new];
+    paragraph.lineBreakMode = NSLineBreakByWordWrapping;
+    paragraph.alignment = label.textAlignment;
+    CGRect textBounds = [label.text boundingRectWithSize:CGSizeMake(width, CGFLOAT_MAX)
+        options:NSStringDrawingUsesLineFragmentOrigin | NSStringDrawingUsesFontLeading
+        attributes:@{NSFontAttributeName:label.font, NSParagraphStyleAttributeName:paragraph}
+        context:nil];
+    return ceil(MAX(textBounds.size.height, label.font.lineHeight)) + 2;
 }
 
 - (void)viewDidLayoutSubviews
 {
     [super viewDidLayoutSubviews];
-    BOOL titleChanged = [self updateTextHeight:self.titleLabel constraint:self.titleMinimumHeight];
-    BOOL messageChanged = [self updateTextHeight:self.messageLabel constraint:self.messageMinimumHeight];
-    if (titleChanged || messageChanged) {
-        // A second pass incorporates the full text into the scroll content size.
-        // Constants change only when measured height changes, avoiding a layout loop.
-        [self.view layoutIfNeeded];
-    }
+    self.bgImageView.frame = self.view.bounds;
+    CGRect viewport = UIEdgeInsetsInsetRect(self.view.bounds, self.view.safeAreaInsets);
+    self.scrollView.frame = viewport;
+    CGFloat width = MIN(480, floor(CGRectGetWidth(viewport) * 0.82));
+    if (width <= 0) return;
+
+    CGFloat titleHeight = [self heightForLabel:self.titleLabel width:width];
+    CGFloat messageHeight = [self heightForLabel:self.messageLabel width:width];
+    CGFloat y = 0;
+    self.titleLabel.frame = CGRectMake(0, y, width, titleHeight);
+    y += titleHeight + 12;
+    self.messageLabel.frame = CGRectMake(0, y, width, messageHeight);
+    y += messageHeight + 22;
+    self.allowButton.frame = CGRectMake(0, y, width, 48);
+    y += 48 + 12;
+    self.cancelButton.frame = CGRectMake(0, y, width, 44);
+    CGFloat contentHeight = y + 44;
+    CGFloat pageHeight = MAX(CGRectGetHeight(viewport), contentHeight + 32);
+    self.contentView.frame = CGRectMake(floor((CGRectGetWidth(viewport) - width) / 2),
+        floor((pageHeight - contentHeight) / 2), width, contentHeight);
+    self.scrollView.contentSize = CGSizeMake(CGRectGetWidth(viewport), pageHeight);
+    CGFloat maxOffset = MAX(0, pageHeight - CGRectGetHeight(viewport));
+    self.scrollView.contentOffset = CGPointMake(0, MIN(MAX(0, self.scrollView.contentOffset.y), maxOffset));
+}
+
+- (void)viewDidAppear:(BOOL)animated
+{
+    [super viewDidAppear:animated];
+    NSLog(@"[EasyLaunch] Notification prompt layout r4 explicit frames (2026-10-01); title length=%lu frame=%@",
+        (unsigned long)self.titleLabel.text.length, NSStringFromCGRect(self.titleLabel.frame));
 }
 
 - (void)onAllow:(id)sender
